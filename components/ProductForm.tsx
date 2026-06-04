@@ -12,6 +12,7 @@ interface FormData {
   baseUrl: string;
   llmModel: string;
   systemPrompt: string;
+  corsProxy: string;
 }
 
 interface ProductFormProps {
@@ -30,6 +31,7 @@ export default function ProductForm({ onGenerate, loading }: ProductFormProps) {
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState("https://api.siliconflow.cn/v1");
   const [llmModel, setLlmModel] = useState("XiaomiMiMo/MiMo-7B-RL");
+  const [corsProxy, setCorsProxy] = useState("https://corsproxy.io");
   const [showConfig, setShowConfig] = useState(false);
 
   const activeCategory = CATEGORIES.find((c) => c.id === category)!;
@@ -43,6 +45,7 @@ export default function ProductForm({ onGenerate, loading }: ProductFormProps) {
         if (cfg.apiKey) setApiKey(cfg.apiKey);
         if (cfg.baseUrl) setBaseUrl(cfg.baseUrl);
         if (cfg.llmModel) setLlmModel(cfg.llmModel);
+        if (cfg.corsProxy !== undefined) setCorsProxy(cfg.corsProxy);
       } catch {}
     }
   }, []);
@@ -73,7 +76,7 @@ export default function ProductForm({ onGenerate, loading }: ProductFormProps) {
     e.preventDefault();
     localStorage.setItem(
       "listing-gen-config",
-      JSON.stringify({ apiKey, baseUrl, llmModel })
+      JSON.stringify({ apiKey, baseUrl, llmModel, corsProxy })
     );
     onGenerate({
       model,
@@ -84,6 +87,7 @@ export default function ProductForm({ onGenerate, loading }: ProductFormProps) {
       baseUrl,
       llmModel,
       systemPrompt: activeCategory.systemPrompt,
+      corsProxy,
     });
   };
 
@@ -162,8 +166,20 @@ export default function ProductForm({ onGenerate, loading }: ProductFormProps) {
                 />
               </div>
             </div>
+            <div>
+              <label className="block text-xs font-medium text-amber-800 dark:text-amber-200 mb-1">
+                CORS 代理 <span className="text-amber-500">（解决浏览器跨域问题）</span>
+              </label>
+              <input
+                type="text"
+                value={corsProxy}
+                onChange={(e) => setCorsProxy(e.target.value)}
+                placeholder="https://corsproxy.io"
+                className={inputCls}
+              />
+            </div>
             <p className="text-xs text-amber-600 dark:text-amber-400">
-              配置保存在浏览器本地，不会上传到服务器。支持 OpenAI 兼容接口（DeepSeek、通义千问等）。
+              配置保存在浏览器本地，不会上传到服务器。支持 OpenAI 兼容接口（硅基流动、DeepSeek、通义千问等）。
             </p>
           </div>
         )}

@@ -21,6 +21,7 @@ export default function Home() {
     baseUrl: string;
     llmModel: string;
     systemPrompt: string;
+    corsProxy: string;
   }) => {
     setLoading(true);
     setError(null);

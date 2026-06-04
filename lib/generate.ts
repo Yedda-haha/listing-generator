@@ -10,6 +10,7 @@ interface GenerateConfig {
   baseUrl: string;
   llmModel: string;
   systemPrompt: string;
+  corsProxy: string;
 }
 
 async function generateOne(
@@ -18,14 +19,23 @@ async function generateOne(
   apiKey: string,
   baseUrl: string,
   llmModel: string,
-  systemPrompt: string
+  systemPrompt: string,
+  corsProxy: string
 ): Promise<ListingResult> {
   const mp = MARKETPLACES.find((m) => m.id === mpId);
   if (!mp) throw new Error(`Unknown marketplace: ${mpId}`);
 
   const userPrompt = buildUserPrompt(productInfo, mp.label, mp.language);
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
+  // Build the actual API URL
+  let apiUrl = `${baseUrl.replace(/\/+$/, "")}/chat/completions`;
+
+  // If CORS proxy is set, prepend it
+  if (corsProxy) {
+    apiUrl = corsProxy.replace(/\/+$/, "") + "/" + apiUrl;
+  }
+
+  const response = await fetch(apiUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -82,7 +92,7 @@ export async function generateAll(config: GenerateConfig): Promise<ListingResult
   }
 
   const promises = config.marketplaces.map((mpId) =>
-    generateOne(productInfo, mpId, config.apiKey, config.baseUrl, config.llmModel, config.systemPrompt)
+    generateOne(productInfo, mpId, config.apiKey, config.baseUrl, config.llmModel, config.systemPrompt, config.corsProxy)
   );
 
   return Promise.all(promises);
