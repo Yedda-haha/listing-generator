@@ -30,9 +30,9 @@ async function generateOne(
   // Build the actual API URL
   let apiUrl = `${baseUrl.replace(/\/+$/, "")}/chat/completions`;
 
-  // If CORS proxy is set, prepend it
+  // If CORS proxy is set, route through it
   if (corsProxy) {
-    apiUrl = corsProxy.replace(/\/+$/, "") + "/" + apiUrl;
+    apiUrl = corsProxy.replace(/\/+$/, "") + "/?" + apiUrl;
   }
 
   const response = await fetch(apiUrl, {
