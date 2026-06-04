@@ -28,8 +28,8 @@ export default function ProductForm({ onGenerate, loading }: ProductFormProps) {
 
   // API config
   const [apiKey, setApiKey] = useState("");
-  const [baseUrl, setBaseUrl] = useState("https://api.openai.com/v1");
-  const [llmModel, setLlmModel] = useState("gpt-4o");
+  const [baseUrl, setBaseUrl] = useState("https://api.siliconflow.cn/v1");
+  const [llmModel, setLlmModel] = useState("XiaomiMiMo/MiMo-7B-RL");
   const [showConfig, setShowConfig] = useState(false);
 
   const activeCategory = CATEGORIES.find((c) => c.id === category)!;

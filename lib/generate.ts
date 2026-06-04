@@ -38,7 +38,6 @@ async function generateOne(
         { role: "user", content: userPrompt },
       ],
       temperature: 0.7,
-      response_format: { type: "json_object" },
     }),
   });
 
@@ -54,7 +53,18 @@ async function generateOne(
     throw new Error(`Empty response for ${mpId}`);
   }
 
-  const parsed = JSON.parse(content);
+  // Strip markdown code blocks if present
+  let jsonStr = content.trim();
+  if (jsonStr.startsWith("```")) {
+    jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
+  }
+  // Extract JSON object if embedded in text
+  const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    jsonStr = jsonMatch[0];
+  }
+
+  const parsed = JSON.parse(jsonStr);
 
   return {
     marketplace: mpId,
