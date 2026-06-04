@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CORS 代理部署指南</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #1e293b; line-height: 1.7; }
+    .header { background: linear-gradient(135deg, #f97316, #ea580c); color: #fff; padding: 2.5rem 1rem; text-align: center; }
+    .header h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+    .container { max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+    .step { background: #fff; border-radius: 16px; padding: 2rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-left: 4px solid #f97316; }
+    .step h2 { font-size: 1.15rem; color: #ea580c; margin-bottom: 1rem; }
+    .step p { margin-bottom: 0.75rem; color: #475569; font-size: 0.93rem; }
+    pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 1rem 1.25rem; overflow-x: auto; font-size: 0.85rem; line-height: 1.6; margin: 0.75rem 0; }
+    code { background: #f1f5f9; padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.88em; }
+    .file-tree { background: #1e293b; color: #e2e8f0; border-radius: 12px; padding: 1.25rem 1.5rem; font-family: monospace; font-size: 0.88rem; line-height: 2; margin: 1rem 0; }
+    .warn { background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; padding: 0.75rem 1rem; margin: 0.75rem 0; font-size: 0.9rem; color: #92400e; }
+    .warn::before { content: "⚠️ "; }
+    .ok { background: #dcfce7; border: 1px solid #bbf7d0; border-radius: 8px; padding: 0.75rem 1rem; margin: 0.75rem 0; font-size: 0.9rem; color: #166534; }
+    .ok::before { content: "✅ "; }
+    a { color: #2563eb; }
+    .url-box { background: #1e293b; color: #38bdf8; border-radius: 8px; padding: 0.75rem 1rem; font-family: monospace; font-size: 0.9rem; margin: 0.75rem 0; }
+    .footer { text-align: center; padding: 2rem; color: #94a3b8; font-size: 0.8rem; }
+    .arrow { text-align: center; font-size: 1.5rem; color: #94a3b8; margin: -0.5rem 0; }
+  </style>
+</head>
+<body>
+<div class="header">
+  <h1>🔧 CORS 代理部署指南</h1>
+  <p>在 Cloudflare Workers 上部署免费代理，解决浏览器跨域问题</p>
+</div>
+<div class="container">
+
+  <div class="step">
+    <h2>为什么要部署代理？</h2>
+    <p>浏览器直接调用 AI API 会被跨域策略（CORS）拦截。需要一个代理服务器转发请求。</p>
+    <p>Cloudflare Workers <strong>免费</strong>、<strong>无需服务器</strong>、<strong>全球 CDN</strong>，每天 10 万次请求免费。</p>
+  </div>
+
+  <div class="arrow">⬇️</div>
+
+  <div class="step">
+    <h2>1. 注册 Cloudflare</h2>
+    <p>打开 <a href="https://dash.cloudflare.com/sign-up" target="_blank">https://dash.cloudflare.com/sign-up</a></p>
+    <p>用邮箱注册，免费即可。</p>
+  </div>
+
+  <div class="arrow">⬇️</div>
+
+  <div class="step">
+    <h2>2. 创建 Worker</h2>
+    <p>登录后：</p>
+    <p>1. 左侧菜单点 <strong>Workers & Pages</strong></p>
+    <p>2. 点 <strong>Create</strong> → <strong>Workers</strong></p>
+    <p>3. 点 <strong>Create Worker</strong></p>
+    <p>4. 随便起个名字，比如 <code>listing-cors-proxy</code></p>
+    <p>5. 把默认代码 <strong>全部删掉</strong>，粘贴下面的代码：</p>
+<pre>export default {
+  async fetch(request) {
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        },
+      });
+    }
+    if (request.method !== "POST") {
+      return new Response("Only POST allowed", { status: 405 });
+    }
+    try {
+      const body = await request.json();
+      const { url, headers: reqHeaders, body: reqBody } = body;
+      if (!url) {
+        return new Response(JSON.stringify({ error: "Missing url" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: reqHeaders || { "Content-Type": "application/json" },
+        body: typeof reqBody === "string" ? reqBody : JSON.stringify(reqBody),
+      });
+      const data = await resp.text();
+      return new Response(data, {
+        status: resp.status,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    } catch (e) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    }
+  },
+};</pre>
+    <p>6. 点右上角 <strong>Save and Deploy</strong></p>
+  </div>
+
+  <div class="arrow">⬇️</div>
+
+  <div class="step">
+    <h2>3. 获取代理地址</h2>
+    <p>部署成功后，页面会显示你的 Worker URL，格式类似：</p>
+    <div class="url-box">https://listing-cors-proxy.你的用户名.workers.dev</div>
+    <p>复制这个 URL。</p>
+  </div>
+
+  <div class="arrow">⬇️</div>
+
+  <div class="step">
+    <h2>4. 配置到 Listing Generator</h2>
+    <p>打开 Listing Generator 页面 → 点 <strong>API 配置</strong></p>
+    <p>把 <strong>CORS 代理</strong> 一栏填入你的 Worker URL：</p>
+    <div class="url-box">https://listing-cors-proxy.你的用户名.workers.dev</div>
+    <div class="warn">不要带末尾的 <code>/</code></div>
+  </div>
+
+  <div class="arrow">⬇️</div>
+
+  <div class="step">
+    <h2>5. 测试</h2>
+    <p>填入 API Key，选择品类，点生成 Listing。</p>
+    <div class="ok">如果成功生成内容，说明代理配置正确！</div>
+  </div>
+
+  <div class="step">
+    <h2>代码文件</h2>
+    <p>代理代码也在本地项目的 <code>cors-proxy/</code> 文件夹里：</p>
+    <div class="file-tree">
+      cors-proxy/<br>
+      ├── worker.js &nbsp;&nbsp;&nbsp;&nbsp;← Worker 代码<br>
+      ├── wrangler.toml &nbsp;← Cloudflare 配置<br>
+      └── deploy-guide.html ← 本文件
+    </div>
+  </div>
+
+</div>
+<div class="footer">Listing Generator — CORS 代理部署指南</div>
+</body>
+</html>

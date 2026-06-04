@@ -26,30 +26,44 @@ async function generateOne(
   if (!mp) throw new Error(`Unknown marketplace: ${mpId}`);
 
   const userPrompt = buildUserPrompt(productInfo, mp.label, mp.language);
+  const apiUrl = `${baseUrl.replace(/\/+$/, "")}/chat/completions`;
 
-  // Build the actual API URL
-  let apiUrl = `${baseUrl.replace(/\/+$/, "")}/chat/completions`;
+  const apiBody = {
+    model: llmModel,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    temperature: 0.7,
+  };
 
-  // If CORS proxy is set, route through it
+  let response: Response;
+
   if (corsProxy) {
-    apiUrl = corsProxy.replace(/\/+$/, "") + "/?" + apiUrl;
+    // Use custom CORS proxy (Cloudflare Worker)
+    response = await fetch(corsProxy.replace(/\/+$/, ""), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url: apiUrl,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: apiBody,
+      }),
+    });
+  } else {
+    // Direct call (for local dev)
+    response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(apiBody),
+    });
   }
-
-  const response = await fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: llmModel,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.7,
-    }),
-  });
 
   if (!response.ok) {
     const errText = await response.text();
